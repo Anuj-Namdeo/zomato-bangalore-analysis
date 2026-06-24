@@ -1,0 +1,152 @@
+{
+  "name": "Zomato Bangalore Analytics",
+  "dataColors": [
+    "#E23744",
+    "#FC6B21",
+    "#FFB829",
+    "#2D9CDB",
+    "#6FCF97",
+    "#9B51E0",
+    "#F39C12",
+    "#27AE60",
+    "#E74C3C",
+    "#8E44AD"
+  ],
+  "good": "#27AE60",
+  "neutral": "#F39C12",
+  "bad": "#E74C3C",
+  "maximum": "#27AE60",
+  "center": "#FFB829",
+  "minimum": "#E23744",
+  "null": "#BDC3C7",
+  "background": "#FFFFFF",
+  "foreground": "#252525",
+  "tableAccent": "#E23744",
+  "visualStyles": {
+    "*": {
+      "*": {
+        "fontFamily": [{ "value": "Segoe UI" }],
+        "fontSize":   [{ "value": 11 }],
+        "fontColor":  [{ "value": "#252525" }]
+      },
+      "title": {
+        "fontColor":  [{ "value": "#252525" }],
+        "fontSize":   [{ "value": 14 }],
+        "fontFamily": [{ "value": "Segoe UI Semibold" }],
+        "background": [{ "color": { "solid": { "color": "#FFFFFF" } } }],
+        "borderBottom": [{ "show": true, "color": { "solid": { "color": "#E8E8E8" } } }]
+      },
+      "background": [{ "show": true, "color": { "solid": { "color": "#FFFFFF" } }, "transparency": 0 }],
+      "border": [{ "show": true, "color": { "solid": { "color": "#E8E8E8" } }, "radius": 8 }],
+      "dropShadow": [{ "show": true, "position": "Outer", "preset": "Small" }],
+      "padding": [{ "top": 12, "right": 12, "bottom": 12, "left": 12 }]
+    },
+    "card": {
+      "*": {
+        "calloutFontSize":    [{ "value": 32 }],
+        "calloutFontFamily":  [{ "value": "Segoe UI Semibold" }],
+        "fontColor":          [{ "value": "#E23744" }],
+        "labelFontFamily":    [{ "value": "Segoe UI" }],
+        "labelFontSize":      [{ "value": 11 }],
+        "labelColor":         [{ "value": "#6B6B6B" }]
+      }
+    },
+    "clusteredBarChart": {
+      "*": {
+        "dataColor": [{ "color": { "solid": { "color": "#E23744" } } }],
+        "labelColor": [{ "value": "#252525" }],
+        "labelFontSize": [{ "value": 10 }]
+      }
+    },
+    "clusteredColumnChart": {
+      "*": {
+        "dataColor": [{ "color": { "solid": { "color": "#E23744" } } }]
+      }
+    },
+    "lineChart": {
+      "*": {
+        "lineColor": [{ "color": { "solid": { "color": "#E23744" } } }],
+        "strokeWidth": [{ "value": 3 }],
+        "markerEnabled": [{ "value": true }],
+        "markerSize": [{ "value": 5 }]
+      }
+    },
+    "donutChart": {
+      "*": {
+        "innerRadiusFactor": [{ "value": 0.6 }]
+      }
+    },
+    "matrix": {
+      "*": {
+        "fontFamily":       [{ "value": "Segoe UI" }],
+        "fontSize":         [{ "value": 10 }],
+        "headerFontSize":   [{ "value": 11 }],
+        "headerFontFamily": [{ "value": "Segoe UI Semibold" }],
+        "headerBackground": [{ "color": { "solid": { "color": "#FFF0F1" } } }],
+        "gridVerticalColor": [{ "value": "#E8E8E8" }],
+        "gridHorizontalColor": [{ "value": "#E8E8E8" }]
+      }
+    },
+    "slicer": {
+      "*": {
+        "fontFamily":      [{ "value": "Segoe UI" }],
+        "fontSize":        [{ "value": 11 }],
+        "fontColor":       [{ "value": "#252525" }],
+        "background":      [{ "color": { "solid": { "color": "#FFFFFF" } } }],
+        "outlineColor":    [{ "value": "#E23744" }],
+        "outlineWeight":   [{ "value": 2 }],
+        "selectionColor":  [{ "value": "#E23744" }]
+      }
+    },
+    "scatterChart": {
+      "*": {
+        "markerSize":  [{ "value": 8 }],
+        "markerShape": [{ "value": "circle" }]
+      }
+    },
+    "map": {
+      "*": {
+        "bubblesEnabled": [{ "value": true }]
+      }
+    },
+    "treemap": {
+      "*": {
+        "fontFamily": [{ "value": "Segoe UI" }],
+        "fontSize":   [{ "value": 10 }],
+        "fontColor":  [{ "value": "#FFFFFF" }]
+      }
+    }
+  },
+  "textClasses": {
+    "callout": {
+      "fontSize": 32,
+      "fontFace": "Segoe UI Semibold",
+      "color": "#E23744"
+    },
+    "title": {
+      "fontSize": 18,
+      "fontFace": "Segoe UI Semibold",
+      "color": "#E23744"
+    },
+    "header": {
+      "fontSize": 14,
+      "fontFace": "Segoe UI Semibold",
+      "color": "#252525"
+    },
+    "body": {
+      "fontSize": 11,
+      "fontFace": "Segoe UI",
+      "color": "#252525"
+    },
+    "label": {
+      "fontSize": 10,
+      "fontFace": "Segoe UI",
+      "color": "#6B6B6B"
+    },
+    "smallLabel": {
+      "fontSize": 9,
+      "fontFace": "Segoe UI",
+      "color": "#6B6B6B"
+    }
+  }
+}

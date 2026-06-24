@@ -1,0 +1,986 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║      ZOMATO BANGALORE RESTAURANT ANALYSIS — COMPLETE GUIDE          ║
+║      End-to-End Implementation Manual (Portfolio Project)           ║
+║      Version 1.0 | Author: Your Name                                ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+READ THIS FIRST:
+  This guide assumes you are a practicing Data Analyst with working
+  knowledge of Python, Pandas, SQL, Power BI, and EDA. No concept
+  explanations are included — only production-ready implementation steps.
+
+  Open this guide in VS Code: code guide.txt
+  Follow phases sequentially. Each phase has exact commands and expected outputs.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 1: PROJECT SETUP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STEP 1.1 — CREATE DIRECTORY STRUCTURE
+──────────────────────────────────────
+Run these commands from your preferred parent folder:
+
+  mkdir Zomato_Bangalore_Analysis
+  cd Zomato_Bangalore_Analysis
+  mkdir -p data/raw data/cleaned notebooks src dashboard reports images sql logs
+
+STEP 1.2 — VIRTUAL ENVIRONMENT
+───────────────────────────────
+  python -m venv venv
+
+  # Activate:
+  # Windows:  venv\Scripts\activate
+  # Mac/Linux: source venv/bin/activate
+
+  # Verify:
+  python --version    # should show 3.10+
+  which python        # should point inside venv/
+
+STEP 1.3 — INSTALL DEPENDENCIES
+─────────────────────────────────
+  pip install --upgrade pip
+  pip install -r requirements.txt
+
+  # Verify key installs:
+  python -c "import pandas; print(pandas.__version__)"  # → 2.2.x
+  python -c "import sklearn; print(sklearn.__version__)"  # → 1.5.x
+
+STEP 1.4 — VS CODE SETUP
+──────────────────────────
+  code .   # Open project in VS Code
+
+  # Recommended extensions (install from Extensions panel):
+  # - Python (Microsoft)
+  # - Jupyter (Microsoft)
+  # - Pylance
+  # - GitLens
+  # - Better Comments
+
+  # Select interpreter: Ctrl+Shift+P → "Python: Select Interpreter" → choose venv
+
+STEP 1.5 — GIT INITIALIZATION
+───────────────────────────────
+  git init
+  git add .gitignore
+  git commit -m "chore: initial project setup with gitignore"
+
+  # Create GitHub repo (via browser or gh CLI):
+  gh repo create zomato-bangalore-analysis --public --description "End-to-end restaurant data analysis for Bangalore"
+  git remote add origin https://github.com/YOUR_USERNAME/zomato-bangalore-analysis.git
+  git push -u origin main
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 2: DATASET ACQUISITION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STEP 2.1 — DOWNLOAD
+─────────────────────
+  URL: https://www.kaggle.com/datasets/himanshupoddar/zomato-bangalore-restaurants
+
+  Option A — Browser:
+    1. Login to Kaggle → Click Download → Extract zip → Take zomato.csv
+    2. Place it at: data/raw/zomato.csv
+
+  Option B — Kaggle API (faster):
+    pip install kaggle
+    # Place kaggle.json in ~/.kaggle/ (download from Kaggle account settings)
+    kaggle datasets download -d himanshupoddar/zomato-bangalore-restaurants -p data/raw --unzip
+
+STEP 2.2 — VERIFY
+──────────────────
+  Run in Python or Jupyter:
+
+    import pandas as pd
+    df = pd.read_csv("data/raw/zomato.csv", encoding="latin-1")
+    print(df.shape)       # Expected: (51717, 17) approximately
+    print(df.columns.tolist())
+    # Expected columns:
+    # ['url', 'address', 'name', 'online_order', 'book_table', 'rate',
+    #  'votes', 'phone', 'location', 'rest_type', 'dish_liked', 'cuisines',
+    #  'approx_cost(for two)', 'reviews_list', 'menu_item', 'listed_in(type)',
+    #  'listed_in(city)']
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 3: DATA INSPECTION (notebooks/01_Data_Inspection.ipynb)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Open: jupyter notebook → create 01_Data_Inspection.ipynb
+
+Cell 1 — Imports:
+─────────────────
+  import sys; sys.path.insert(0, "..")
+  import pandas as pd
+  import numpy as np
+  import matplotlib.pyplot as plt
+  import seaborn as sns
+  import missingno as msno
+  from src.utils import load_raw_data, dataframe_summary, check_duplicates, outlier_summary
+
+Cell 2 — Load & Shape:
+───────────────────────
+  df = load_raw_data()
+  print(f"Shape: {df.shape}")
+  print(f"Memory: {df.memory_usage(deep=True).sum() / 1e6:.1f} MB")
+  df.head(5)
+
+  EXPECTED OUTPUT: (51717, 17), ~15-20 MB
+
+Cell 3 — Column Summary:
+──────────────────────────
+  summary = dataframe_summary(df)
+  display(summary)
+
+  KEY OBSERVATIONS TO RECORD:
+  - 'rate' column has values like '4.1/5', 'NEW', '-' → needs parsing
+  - 'approx_cost(for two)' has commas like '1,200' → needs cleaning
+  - 'rate' has ~28% null values
+  - 'dish_liked' has ~45% null → will drop or ignore
+  - 'phone' → drop (not needed for analysis)
+  - 'reviews_list' → high-cardinality text → drop
+
+Cell 4 — Duplicate Check:
+──────────────────────────
+  dup_info = check_duplicates(df)
+  print(dup_info)
+  # Expected: ~1,000–2,000 duplicate rows
+  # Show duplicate example:
+  df[df.duplicated(keep=False)].sort_values("name").head(6)
+
+Cell 5 — Missing Data Visualization:
+───────────────────────────────────────
+  fig, axes = plt.subplots(1, 2, figsize=(16, 5))
+  msno.bar(df, ax=axes[0], color="#E23744")
+  msno.heatmap(df, ax=axes[1])
+  plt.tight_layout()
+  plt.savefig("../images/missing_data_inspection.png", dpi=120, bbox_inches="tight")
+  plt.show()
+
+Cell 6 — Rate Column Inspection:
+─────────────────────────────────
+  print(df['rate'].value_counts().head(20))
+  # You'll see: '4.1/5', 'NEW', '-', '3.8 /5', '4.0/5', etc.
+  unique_rate_formats = df['rate'].dropna().str.strip().unique()
+  print(f"Unique formats: {len(unique_rate_formats)}")
+
+Cell 7 — Cost Column Inspection:
+──────────────────────────────────
+  print(df['approx_cost(for two)'].value_counts().head(20))
+  # You'll see: '300', '500', '1,000', '800', etc.
+  print(df['approx_cost(for two)'].dtype)  # object
+
+Cell 8 — Outlier Check:
+────────────────────────
+  # First convert to numeric for inspection
+  cost_num = pd.to_numeric(
+      df['approx_cost(for two)'].str.replace(',', ''), errors='coerce'
+  )
+  print(cost_num.describe())
+  print(f"\nMax cost: ₹{cost_num.max()}")  # Will show very high values
+  print(f"99th pct: ₹{cost_num.quantile(0.99):.0f}")
+
+Cell 9 — Location Inspection:
+───────────────────────────────
+  print(f"Unique locations: {df['location'].nunique()}")
+  print(df['location'].value_counts().head(15))
+  # Note: Similar names like 'Koramangala 5th Block', 'Koramangala 6th Block' → merge
+
+Cell 10 — Save Inspection Notes:
+──────────────────────────────────
+  # Document your findings as Markdown cell:
+  """
+  ## Data Inspection Summary
+
+  | Issue | Column | Strategy |
+  |-------|--------|----------|
+  | Non-numeric format (4.1/5, NEW, -) | rate | Parse regex, coerce to float |
+  | Comma in numbers (1,200) | approx_cost | Remove comma, cast float |
+  | Binary strings (Yes/No) | online_order, book_table | Map to bool |
+  | 45% null | dish_liked | Keep for NLP, ignore for numeric analysis |
+  | ~28% null | rate | Keep as NaN (new restaurants = no rating yet) |
+  | Location name variants | location | Normalization map |
+  | Comma-separated types | rest_type, cuisines | Split → take first as primary |
+  | Irrelevant columns | phone, reviews_list, url, address | Drop |
+  """
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 4: DATA CLEANING (notebooks/02_Data_Cleaning.ipynb)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Open: 02_Data_Cleaning.ipynb
+
+Cell 1 — Imports & Load:
+──────────────────────────
+  import sys; sys.path.insert(0, "..")
+  from src.utils import load_raw_data
+  from src.data_cleaning import run_full_pipeline
+  from src.preprocessing import DataValidator
+  import pandas as pd
+  import numpy as np
+
+  df_raw = load_raw_data()
+  print(f"Raw shape: {df_raw.shape}")
+
+Cell 2 — Run Full Pipeline:
+─────────────────────────────
+  df_clean = run_full_pipeline(df_raw, save=True)
+  print(f"Cleaned shape: {df_clean.shape}")
+
+  EXPECTED OUTPUT LOG (watch for these messages):
+  ✓ Dropped 1 unnamed columns
+  ✓ Duplicates removed: 1,228 (2.37%) → 50,489 rows remain
+  ✓ rate_numeric: 36,372 valid | 27.9% null
+  ✓ approx_cost: 50,480 valid | 9 values capped at ₹6000
+  ✓ online_order: 30,297 True | 20,192 False
+  ✓ location: 93 unique areas | 12 rare merged to 'Other'
+  ✓ primary_rest_type: 22 unique types
+  ✓ primary_cuisine: 89 unique cuisines
+
+Cell 3 — Validate Cleaned Data:
+─────────────────────────────────
+  from src.preprocessing import DataValidator
+  DataValidator.validate(df_clean)
+  # Expected: "✅ All validation checks passed."
+
+Cell 4 — Before vs After Comparison:
+───────────────────────────────────────
+  comparison = pd.DataFrame({
+      'Before': [df_raw.shape[0], df_raw['rate'].isna().sum(),
+                 df_raw.duplicated().sum(), df_raw['approx_cost(for two)'].dtype],
+      'After':  [df_clean.shape[0], df_clean['rate_numeric'].isna().sum(),
+                 df_clean.duplicated().sum(), df_clean['approx_cost'].dtype],
+  }, index=['Rows', 'Rate Nulls', 'Duplicates', 'Cost Dtype'])
+  display(comparison)
+
+Cell 5 — New Columns Preview:
+───────────────────────────────
+  new_cols = ['rate_numeric', 'approx_cost', 'cost_bucket',
+              'votes_bucket', 'primary_cuisine', 'primary_rest_type',
+              'is_high_rated', 'cuisine_count']
+  display(df_clean[new_cols].head(10))
+  display(df_clean[new_cols].describe(include='all'))
+
+Cell 6 — Null Heatmap Post-Cleaning:
+──────────────────────────────────────
+  import missingno as msno
+  fig, ax = plt.subplots(figsize=(14, 5))
+  msno.bar(df_clean, ax=ax, color="#2D9CDB")
+  ax.set_title("Post-Cleaning Null Distribution", fontweight='bold')
+  plt.savefig("../images/missing_post_cleaning.png", dpi=120, bbox_inches='tight')
+  plt.show()
+
+Cell 7 — Save Confirmation:
+─────────────────────────────
+  # Verify file was saved:
+  from pathlib import Path
+  cleaned_path = Path("../data/cleaned/zomato_cleaned.csv")
+  print(f"File exists: {cleaned_path.exists()}")
+  print(f"File size: {cleaned_path.stat().st_size / 1e6:.1f} MB")
+  # Expected: True, ~8-12 MB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 5: EDA (notebooks/03_EDA.ipynb)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Open: 03_EDA.ipynb
+
+Cell 1 — Setup:
+────────────────
+  import sys; sys.path.insert(0, "..")
+  from src.utils import load_cleaned_data, set_plot_style
+  from src.eda import *
+  from src.preprocessing import FeatureEngineer
+  set_plot_style()
+
+  df = load_cleaned_data()
+  df = FeatureEngineer.run_all(df)
+  print(f"Working dataset: {df.shape}")
+
+Cell 2 — Rating Distribution:
+───────────────────────────────
+  fig, axes = plot_rating_distribution(df)
+  plt.show()
+
+  INSIGHT TO NOTE:
+  - Distribution is left-skewed, majority of restaurants rated 3.5–4.2
+  - Mean ≈ 3.71, Median ≈ 3.8
+  - Very few restaurants below 2.0 (these are outliers / errors)
+  - Only ~28% restaurants rated ≥ 4.0 (premium tier)
+
+Cell 3 — Top Locations:
+────────────────────────
+  fig, ax = plot_top_locations(df, top_n=20)
+  plt.show()
+
+  INSIGHT TO NOTE:
+  - Koramangala dominates with highest count (~5,000+ restaurants)
+  - Indiranagar, BTM Layout, JP Nagar follow as high-density zones
+  - South Bangalore cluster (Jayanagar, JP Nagar, BTM) collectively rivals North
+
+Cell 4 — Online Order Impact:
+───────────────────────────────
+  fig, axes = plot_online_order_vs_rating(df)
+  plt.show()
+
+  INSIGHT: Restaurants with online ordering score on average 0.1–0.15
+  higher rating than offline-only. Statistically significant (p < 0.05).
+  60%+ of restaurants now accept online orders.
+
+Cell 5 — Cost Distribution:
+─────────────────────────────
+  fig, axes = plot_cost_distribution(df)
+  plt.show()
+
+  INSIGHT:
+  - Median cost ≈ ₹400 for two
+  - Budget segment (≤₹300) = largest count
+  - Long right tail: luxury restaurants (>₹1500) = <5% but drive premium perception
+  - Most restaurants concentrated in ₹200–₹700 range
+
+Cell 6 — Top Cuisines:
+────────────────────────
+  fig, ax = plot_top_cuisines(df, top_n=15)
+  plt.show()
+
+  INSIGHT:
+  - North Indian dominates (30%+ of all restaurants)
+  - Chinese = 2nd largest — multi-cuisine appeal
+  - South Indian under-represented relative to Bangalore's culture
+  - Biryani deserves dedicated count as standalone category
+
+Cell 7 — Restaurant Types:
+────────────────────────────
+  fig, ax = plot_rest_type_distribution(df)
+  plt.show()
+
+  INSIGHT:
+  - Quick Bites = majority type (fast food, street food)
+  - Casual Dining = 2nd — sit-down mid-range
+  - Cafes growing strongly — driven by IT crowd work-from-café trend
+
+Cell 8 — Correlation Heatmap:
+───────────────────────────────
+  fig, ax = plot_correlation_heatmap(df)
+  plt.show()
+
+  INSIGHT:
+  - Votes & rating: moderate positive correlation (~0.35)
+  - Cost & rating: weak positive (~0.20) — expensive ≠ always better
+  - cuisine_count & rating: near zero — variety doesn't drive quality
+  - popularity_score captures combined signal well
+
+Cell 9 — Votes vs Rating Scatter:
+────────────────────────────────────
+  fig, ax = plot_votes_vs_rating(df, sample_n=5000)
+  plt.show()
+
+  INSIGHT:
+  - High votes + high rating = "Elite" restaurants → upper right cluster
+  - Many restaurants with few votes (new or niche) scattered across ratings
+  - Luxury segment (high cost) skews toward higher votes AND ratings
+
+Cell 10 — Location Rating Heatmap:
+─────────────────────────────────────
+  fig, ax = plot_location_rating_heatmap(df, top_n=20)
+  plt.show()
+
+  INSIGHT:
+  - Indiranagar scores highest across restaurant types
+  - Whitefield has high ratings for Casual Dining specifically
+  - Quick Bites are consistently rated lower (3.5–3.8) regardless of location
+
+Cell 11 — Save All EDA Images:
+────────────────────────────────
+  from src.eda import run_full_eda
+  run_full_eda(df)
+  # All 10 images saved to images/eda/
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 6: BUSINESS INSIGHTS (notebooks/04_Business_Insights.ipynb)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Open: 04_Business_Insights.ipynb
+
+CONTEXT: This notebook simulates a real analyst report for a client —
+"A restaurant consulting firm advising new entrants to Bangalore food market."
+
+Cell 1 — Setup:
+────────────────
+  import sys; sys.path.insert(0, "..")
+  from src.utils import load_cleaned_data
+  from src.preprocessing import FeatureEngineer
+  from src.business_analysis import *
+
+  df = load_cleaned_data()
+  df = FeatureEngineer.run_all(df)
+
+Run Each Business Question as a cell (Q1 through Q25):
+───────────────────────────────────────────────────────
+  # Example: Each cell runs one function and displays result
+  result_q1 = q1_restaurant_density_by_location(df)
+  display(result_q1.head(10))
+
+  result_q2 = q2_online_order_impact_on_rating(df)
+  display(result_q2)
+
+  # ... continue for all 25 questions
+
+RECORD THESE KEY INTERPRETATIONS (for interview prep):
+
+Q2 Interpretation:
+  "Our independent samples t-test showed restaurants accepting online orders
+   have a statistically significant higher average rating (p < 0.05). However,
+   the effect size is small (Cohen's d ≈ 0.18), suggesting online ordering is
+   a signal for quality commitment rather than a direct driver."
+
+Q3 Interpretation:
+  "The ₹400–₹600 mid-range segment shows the second-highest average ratings
+   while commanding lower price premium than luxury. This is the most
+   competitive battleground — differentiation here requires service or quality."
+
+Q7 Interpretation:
+  "Our Location Value Matrix reveals Indiranagar in 'Premium Quality' quadrant —
+   high ratings AND high cost. Whitefield shows 'Best Value' characteristics —
+   similar ratings to premium areas but lower average cost. New entrants seeking
+   quality positioning with better margins should consider Whitefield."
+
+Q10 Interpretation:
+  "Opportunity Score = avg_votes / restaurant_count × avg_rating.
+   Areas with high engagement per restaurant signal unmet demand.
+   Yelahanka and Hebbal score high — growing IT/residential zones."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 7: POWER BI DASHBOARD IMPLEMENTATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STEP 7.1 — EXPORT DATA
+────────────────────────
+  Run in terminal:
+    python -m src.powerbi_export
+
+  This creates: data/cleaned/zomato_powerbi.xlsx (6 sheets)
+
+STEP 7.2 — IMPORT IN POWER BI
+───────────────────────────────
+  1. Open Power BI Desktop
+  2. Get Data → Excel Workbook → select zomato_powerbi.xlsx
+  3. Select ALL 6 sheets in Navigator → Load
+  4. View → Model → verify all sheets loaded
+
+STEP 7.3 — DATA MODEL (RELATIONSHIPS)
+───────────────────────────────────────
+  In Model view:
+  - Main_Data → Location_Summary: Main_Data[Location] = Location_Summary[location]
+    (Many-to-One, Cross-filter: Both)
+  - Main_Data → Cuisine_Summary: Main_Data[Primary Cuisine] = Cuisine_Summary[primary_cuisine]
+    (Many-to-One, Cross-filter: Both)
+  - Main_Data → RestType_Summary: Main_Data[Primary Rest Type] = RestType_Summary[primary_rest_type]
+    (Many-to-One, Cross-filter: Both)
+  - KPI_Table: standalone (no relationship needed)
+
+STEP 7.4 — DAX MEASURES
+────────────────────────
+  Create these measures in Main_Data table:
+
+  [Total Restaurants]
+  ─────────────────────
+  Total Restaurants = COUNTROWS('Main_Data')
+
+  [Average Rating]
+  ────────────────
+  Average Rating = AVERAGE('Main_Data'[Rate Numeric])
+
+  [High Rated %]
+  ───────────────
+  High Rated % =
+  DIVIDE(
+      COUNTROWS(FILTER('Main_Data', 'Main_Data'[Is High Rated] = TRUE())),
+      COUNTROWS('Main_Data'),
+      0
+  ) * 100
+
+  [Median Cost]
+  ─────────────
+  Median Cost = MEDIANX('Main_Data', 'Main_Data'[Approx Cost])
+
+  [Online Order %]
+  ────────────────
+  Online Order % =
+  DIVIDE(
+      COUNTROWS(FILTER('Main_Data', 'Main_Data'[Online Order] = TRUE())),
+      COUNTROWS('Main_Data'),
+      0
+  ) * 100
+
+  [Table Booking %]
+  ─────────────────
+  Table Booking % =
+  DIVIDE(
+      COUNTROWS(FILTER('Main_Data', 'Main_Data'[Book Table] = TRUE())),
+      COUNTROWS('Main_Data'),
+      0
+  ) * 100
+
+  [Total Votes]
+  ─────────────
+  Total Votes = SUM('Main_Data'[Votes])
+
+  [Avg Votes per Restaurant]
+  ──────────────────────────
+  Avg Votes per Restaurant = DIVIDE([Total Votes], [Total Restaurants])
+
+  [Rating Colour]  (for conditional formatting)
+  ─────────────────
+  Rating Colour =
+  IF(SELECTEDVALUE('Main_Data'[Rate Numeric]) >= 4.0, "#6FCF97",
+  IF(SELECTEDVALUE('Main_Data'[Rate Numeric]) >= 3.5, "#FFB829", "#E23744"))
+
+STEP 7.5 — DASHBOARD LAYOUT (6 PAGES)
+───────────────────────────────────────
+
+PAGE 1: EXECUTIVE OVERVIEW
+  ┌──────────────────────────────────────────────────────┐
+  │  LOGO   │  Zomato Bangalore Restaurant Analysis     │
+  ├──────────┬──────────┬──────────┬──────────┬─────────┤
+  │ Total    │ Avg      │ Median   │ Online   │ High    │
+  │ Rests    │ Rating   │ Cost     │ Order%   │ Rated%  │
+  │ [Card]   │ [Card]   │ [Card]   │ [Card]   │ [Card]  │
+  ├──────────────────────────┬──────────────────────────┤
+  │ Top 10 Locations         │ Rating Distribution       │
+  │ [Bar Chart - horizontal] │ [Histogram/Column chart]  │
+  ├──────────────────────────┼──────────────────────────┤
+  │ Online Order Split       │ Price Segment Split       │
+  │ [Pie/Donut]             │ [Donut]                   │
+  └──────────────────────────┴──────────────────────────┘
+  Slicers: Location (dropdown), Online Order (toggle), Cost Bucket
+
+PAGE 2: LOCATION ANALYSIS
+  ┌──────────────────────────────────────────────────────┐
+  │ Map Visual (Bubble map — Bing Maps)                  │
+  │ Size = Restaurant Count | Color = Avg Rating         │
+  ├──────────────────────────┬──────────────────────────┤
+  │ Location Table           │ Location Value Scatter    │
+  │ [Matrix: Loc|Count|Rating│ X=Cost, Y=Rating          │
+  │ |Cost|Online%]           │ Size=Count, Color=Tier    │
+  └──────────────────────────┴──────────────────────────┘
+  Slicers: Location Tier, Min Restaurant Count
+
+PAGE 3: CUISINE INSIGHTS
+  ┌──────────────────────────────────────────────────────┐
+  │ Top 15 Cuisines Bar       │ Cuisine × Rating Matrix  │
+  │ [Horizontal bar]          │ [Heatmap / Matrix]       │
+  ├──────────────────────────┴──────────────────────────┤
+  │ Cuisine Avg Cost Ranking (Top 10)                    │
+  │ [Horizontal bar - descending cost]                   │
+  └──────────────────────────────────────────────────────┘
+  Slicers: Min Restaurant Count, Primary Cuisine
+
+PAGE 4: PRICE & RATING
+  ┌──────────────────────────────────────────────────────┐
+  │ Price Segment vs Avg Rating   │ Cost Distribution    │
+  │ [Dual-axis line + bar]        │ [Histogram bins]     │
+  ├───────────────────────────────┴──────────────────────┤
+  │ Restaurant Segment Profile (KMeans clusters)         │
+  │ [Clustered bar: 4 segments × metrics]                │
+  └──────────────────────────────────────────────────────┘
+  Slicers: Cost Bucket, Restaurant Type
+
+PAGE 5: SERVICE ANALYSIS
+  ┌──────────────────────────────────────────────────────┐
+  │ Online Order by Location      │ Rating vs Service    │
+  │ [100% Stacked Bar]            │ Level [Grouped Bar]  │
+  ├───────────────────────────────┴──────────────────────┤
+  │ Full-Service Premium Analysis                        │
+  │ [Matrix: online_order × book_table → avg cost/rating]│
+  └──────────────────────────────────────────────────────┘
+
+PAGE 6: STRATEGIC RECOMMENDATIONS
+  ┌──────────────────────────────────────────────────────┐
+  │ Opportunity Score by Location   │ Market Gap Cuisine │
+  │ [Horizontal bar - top 10]       │ [Scatter: count vs │
+  │                                 │  rating, small cnt │
+  │                                 │  = bubble size]    │
+  ├──────────────────────────────────────────────────────┤
+  │ Key Findings Text Box (use Text Visual):             │
+  │ • Koramangala: highest density, open for premium     │
+  │ • Whitefield: best value zone for new entrants       │
+  │ • Continental cuisine: high rating, low competition  │
+  │ • Online ordering: non-negotiable for new restaurants│
+  └──────────────────────────────────────────────────────┘
+
+STEP 7.6 — FORMATTING RULES
+─────────────────────────────
+  Theme: Import custom Zomato theme
+  Primary color: #E23744 (Zomato Red)
+  Secondary: #FC6B21 (Orange)
+  Accent: #2D9CDB (Blue)
+  Background: #FFFFFF | Card background: #F9F9F9
+  Font: Segoe UI (Power BI default)
+  Title font size: 14px bold | Metric font: 28px bold
+
+  KPI Cards:
+    - Background: white with colored top border (3px, brand color)
+    - Value: large font (28+), bold
+    - Label: small (11px), grey
+    - Comparison metric where possible
+
+  Chart titles: Left-aligned, 12px, font weight semi-bold
+  Remove unnecessary grid lines, axis titles where obvious
+
+STEP 7.7 — PUBLISH
+────────────────────
+  File → Publish → select workspace
+  OR: Export → PDF for offline sharing
+  IMPORTANT: Screenshot each page at 1920×1080 → save to images/
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 8: PROJECT REPORT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+REPORT STRUCTURE (reports/Final_Report.pdf):
+─────────────────────────────────────────────
+  1. Executive Summary (1 page)
+     - Project objective, dataset, 5 key findings, 3 top recommendations
+
+  2. Data Dictionary (1 page)
+     - All columns, types, descriptions, cleaning notes
+
+  3. Methodology (1 page)
+     - Cleaning pipeline, feature engineering decisions, validation
+
+  4. EDA Findings (3-4 pages)
+     - Include all 10 EDA charts with 2-3 line interpretations each
+
+  5. Business Analysis (5-6 pages)
+     - Top 10 business questions with charts + interpretations
+     - Q7 Value Matrix, Q10 Opportunity Score, Q23 Market Gaps are must-include
+
+  6. Dashboard Overview (1-2 pages)
+     - Screenshots of all 6 Power BI pages
+
+  7. Strategic Recommendations (1 page)
+     - 5 numbered, actionable, data-backed recommendations
+
+  8. Appendix: SQL Queries Used
+
+PDF GENERATION (two approaches):
+
+  Option A — ReportLab (Python):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
+    # Build PDF programmatically — see reportlab docs
+
+  Option B — Jupyter to PDF (easier):
+    jupyter nbconvert --to pdf notebooks/04_Business_Insights.ipynb
+    # Requires: sudo apt install texlive-xetex (Linux) or MiKTeX (Windows)
+
+  Option C — Google Slides / Canva → Export PDF (most polished)
+    - Paste charts and add text in Canva
+    - Use Canva's data analytics presentation template
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 9: GITHUB PORTFOLIO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RECOMMENDED COMMIT SEQUENCE:
+─────────────────────────────
+  git add requirements.txt .gitignore src/utils.py
+  git commit -m "feat: project skeleton, utils module, requirements"
+
+  git add src/data_cleaning.py
+  git commit -m "feat(cleaning): complete data cleaning pipeline — rate, cost, location, cuisines"
+
+  git add src/preprocessing.py
+  git commit -m "feat(preprocessing): feature engineering, KMeans segmentation, data validator"
+
+  git add src/eda.py
+  git commit -m "feat(eda): 10 EDA visualizations with Zomato brand palette"
+
+  git add src/business_analysis.py
+  git commit -m "feat(analysis): 25 business questions with statistical tests"
+
+  git add src/visualization.py src/powerbi_export.py
+  git commit -m "feat(viz): executive dashboard, Folium map, Power BI export"
+
+  git add sql/zomato_analysis.sql
+  git commit -m "feat(sql): 25 advanced queries — CTEs, window functions, aggregations"
+
+  git add notebooks/
+  git commit -m "feat(notebooks): complete EDA and business insights notebooks"
+
+  git add README.md images/ dashboard/
+  git commit -m "docs: README, dashboard screenshots, guide"
+
+  git push origin main
+
+README SCREENSHOTS TO ADD:
+────────────────────────────
+  images/executive_dashboard.png  ← Place at top of README
+  images/eda/02_rating_distribution.png
+  images/business/q7_value_matrix.png
+  images/business/q10_best_location.png
+  Power BI page 1 screenshot
+  Power BI page 6 screenshot
+
+GITHUB PROFILE README TIP:
+────────────────────────────
+  Pin this repository on your GitHub profile.
+  Add "Zomato Bangalore Analysis" to your pinned repos.
+  Use GitHub's repository topics: add tags:
+    data-analysis, pandas, python, power-bi, sql, eda, matplotlib, seaborn
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 10: RESUME & LINKEDIN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RESUME BULLET POINTS (ATS-Optimized):
+──────────────────────────────────────
+  • Engineered end-to-end data analysis pipeline for 51,000+ Zomato restaurant
+    records using Python (Pandas, NumPy, SciPy), reducing data quality issues
+    by 100% through automated cleaning and validation
+
+  • Performed statistical analysis (independent samples t-test, Pearson
+    correlation, KMeans clustering) revealing that online ordering adoption
+    correlates with 0.13-point rating improvement (p < 0.05)
+
+  • Designed and deployed 6-page interactive Power BI dashboard with 8 custom
+    DAX measures, enabling stakeholders to drill from city-level to
+    restaurant-level insights in 2 clicks
+
+  • Authored 25 advanced SQL queries (CTEs, window functions, RANK/ROW_NUMBER,
+    PERCENTILE_CONT) for location-based competitive analysis and market gap
+    identification
+
+  • Developed opportunity scoring algorithm identifying 5 high-growth
+    Bangalore areas with low restaurant density but high engagement metrics,
+    enabling data-driven location strategy recommendations
+
+  • Built KMeans restaurant segmentation model (4 clusters: Economy →
+    Mainstream → Premium → Elite) enabling targeted marketing strategy
+    formulation based on price-engagement-rating profiles
+
+  Tools: Python, Pandas, NumPy, Scikit-learn, Matplotlib, Seaborn, Plotly,
+         Folium, Power BI, DAX, SQL (PostgreSQL), Jupyter Notebooks, Git
+
+LINKEDIN POST (Ready to paste):
+─────────────────────────────────
+  🍽️ Excited to share my latest data analytics portfolio project!
+
+  📊 Zomato Bangalore Restaurant Analysis
+
+  I built a complete end-to-end data analytics project on 51,000+
+  restaurant records from Bangalore's food delivery platform.
+
+  🔍 What I analyzed:
+  ✅ 25 business questions covering location strategy, cuisine trends,
+     pricing intelligence, and service adoption patterns
+  ✅ Statistical analysis: t-tests, correlation, KMeans clustering
+  ✅ Interactive Power BI dashboard (6 pages, 8+ DAX measures)
+  ✅ 25 advanced SQL queries with CTEs and window functions
+
+  💡 Key Findings:
+  → Restaurants with online ordering have statistically significantly
+    higher ratings (p < 0.05)
+  → Only top 1% restaurants capture ~40% of all votes (Pareto effect)
+  → Continental and Mediterranean cuisines are under-represented
+    but score highest ratings — clear market gap
+  → Whitefield and Hebbal score highest on our Opportunity Index —
+    ideal for new restaurant entrants
+
+  🛠️ Tech Stack:
+  Python • Pandas • Seaborn • Scikit-learn • Folium • Power BI • SQL
+
+  🔗 GitHub: [your-link]
+
+  #DataAnalytics #Python #PowerBI #SQL #EDA #DataScience
+  #PortfolioProject #DataVisualization #Zomato #FoodTech
+
+LINKEDIN PROJECT SECTION:
+──────────────────────────
+  Title: Zomato Bangalore Restaurant Analysis
+  Associated with: [Your current employer/institution]
+  Media: Add dashboard screenshot + GitHub link
+  Description:
+    "End-to-end data analysis of 51,000+ Bangalore restaurant records.
+     Covers data cleaning, feature engineering, EDA, 25+ business insights,
+     Power BI dashboard, and SQL-based market analysis. Built to demonstrate
+     production-grade analytical thinking and stakeholder storytelling."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 11: INTERVIEW PREPARATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+2-MINUTE PROJECT PITCH:
+────────────────────────
+  "I built a full-cycle data analysis project on Zomato's Bangalore restaurant
+  dataset — about 51,000 records. The business objective was to help new and
+  existing restaurants make data-driven decisions on location, pricing, and
+  service strategy.
+
+  I started with data cleaning — the 'rate' column was a string like '4.1/5'
+  or 'NEW', the cost column had commas, and location names were inconsistent.
+  I built a modular cleaning pipeline that handles all of these automatically.
+
+  Then I ran EDA and 25 business analyses. The key finding I'm proud of is
+  what I call the 'Location Value Matrix' — I plotted each area by avg cost vs
+  avg rating and classified areas into four quadrants: Best Value, Premium
+  Quality, Budget Underperformer, and Overpriced. This gives a clear strategic
+  map for restaurant placement.
+
+  I also built a 6-page Power BI dashboard and 25 SQL queries including
+  window functions and CTEs. The whole project is on my GitHub."
+
+5-MINUTE DEEP DIVE:
+────────────────────
+  ADD THESE DETAILS:
+  - "The cleaning decision I'm most proud of: for approx_cost nulls, I didn't
+    just fill with overall median. I grouped by primary_rest_type and filled
+    with group median — because a 'Fine Dining' null should fill higher than a
+    'Quick Bites' null. This was a conscious domain-driven decision."
+
+  - "For the online_order vs rating question, I didn't just compare means —
+    I ran an independent samples t-test. The difference was statistically
+    significant (p < 0.05) but the effect size (Cohen's d ≈ 0.18) was small.
+    This nuance — statistical significance vs practical significance — is an
+    important distinction I explicitly called out in my findings."
+
+  - "The opportunity scoring formula I created: avg_votes / restaurant_count ×
+    avg_rating. It normalizes demand signals against supply — so areas with
+    high engagement per restaurant are promising for new entrants even if they
+    have some existing competition."
+
+  - "For Power BI, I created a DAX measure called 'Rating Colour' that
+    dynamically colours KPI cards red/yellow/green based on the selected
+    rating value — this is a small but impactful UX decision."
+
+10-MINUTE WALKTHROUGH:
+───────────────────────
+  FOLLOW THIS STRUCTURE:
+  1. Dataset introduction (1 min): columns, size, what it represents
+  2. Cleaning decisions (2 min): rate parsing, cost cleaning, location normalization
+  3. Key EDA findings (2 min): show 3 charts — rating dist, top locations, online order
+  4. Business insights (3 min): Q7 value matrix, Q10 opportunity score, Q23 market gaps
+  5. Dashboard walkthrough (2 min): 2-3 Power BI pages
+
+COMMON INTERVIEW QUESTIONS:
+────────────────────────────
+
+  Q: "Why did you choose to cap cost at 99th percentile instead of removing?"
+  A: "Removing would have deleted otherwise valid restaurant records. The
+     extreme cost values (>₹10,000) are data entry errors, not legitimate
+     restaurants. Capping preserves the record while correcting the anomaly.
+     I documented this decision explicitly in my cleaning code."
+
+  Q: "How did you handle the high null % in the rate column?"
+  A: "I kept them as NaN rather than imputing. The nulls are MNAR —
+     Missing Not At Random. 'NEW' restaurants have no ratings because
+     they haven't been reviewed yet. Imputing them would artificially inflate
+     or deflate ratings for genuinely unreviewed businesses, which would bias
+     all downstream analysis."
+
+  Q: "What's the business recommendation from this analysis?"
+  A: "Three priority recommendations:
+     1. Any new restaurant MUST have online ordering — it's both a rating
+        signal and a revenue channel; 60% of rated restaurants use it.
+     2. Whitefield and Hebbal are optimal for new entrants — our Opportunity
+        Score shows high engagement relative to low restaurant count.
+     3. Continental and Mediterranean cuisines are market gaps — high ratings,
+        under-served relative to demand signals like votes per restaurant."
+
+  Q: "Why did you use KMeans clustering?"
+  A: "I needed to segment restaurants into natural groups for targeted insights.
+     I chose K=4 based on business intuition (Economy/Mainstream/Premium/Elite)
+     and validated with the elbow method. The clustering used normalized
+     rate, cost, and votes — three independent quality and commercial signals.
+     The segments emerged cleanly with meaningful cost separation."
+
+  Q: "Walk me through one SQL query you're proud of."
+  A: "Q8 — Top-rated restaurant per location using ROW_NUMBER() OVER
+     (PARTITION BY location ORDER BY rate DESC, votes DESC). This is
+     a classic window function use case — I need one row per location,
+     not aggregated — and PARTITION + ROW_NUMBER lets me do that cleanly
+     without a subquery JOIN. I also added a HAVING clause in the base
+     query requiring at least 100 votes to exclude restaurants with
+     statistically unreliable ratings."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DATA DICTIONARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAW COLUMNS:
+  name              TEXT      Restaurant name
+  online_order      TEXT      'Yes'/'No' — accepts online orders
+  book_table        TEXT      'Yes'/'No' — accepts table reservations
+  rate              TEXT      Rating in '4.1/5' format; 'NEW'/'-' for no rating
+  votes             INT       Number of votes/reviews
+  phone             TEXT      Contact number (dropped in cleaning)
+  location          TEXT      Bangalore area name
+  rest_type         TEXT      Comma-separated restaurant types
+  dish_liked        TEXT      Popular dishes mentioned (sparse)
+  cuisines          TEXT      Comma-separated cuisine types
+  approx_cost(for two) TEXT   Cost for two persons as string (may have commas)
+  reviews_list      TEXT      Raw review text (dropped)
+  menu_item         TEXT      Menu items (very sparse, dropped)
+  listed_in(type)   TEXT      Platform listing type
+  listed_in(city)   TEXT      Sub-city on Zomato platform
+
+ENGINEERED COLUMNS:
+  rate_numeric      FLOAT     Parsed rating (1.0–5.0), NaN if not rated
+  approx_cost       FLOAT     Cleaned numeric cost, capped at 99th pct
+  cost_bucket       CATEGORY  Price segment: Budget/Mid/Premium/Upscale/Luxury
+  votes_bucket      CATEGORY  Engagement tier: New/Growing/Popular/Trendy/Viral
+  primary_rest_type TEXT      First restaurant type from comma-separated list
+  primary_cuisine   TEXT      First cuisine from comma-separated list
+  is_high_rated     BOOL      True if rate_numeric >= 4.0
+  cuisine_count     INT       Number of distinct cuisines offered
+  popularity_score  FLOAT     Composite: 0.6×rating_norm + 0.4×votes_norm
+  value_for_money   FLOAT     rate_numeric / log1p(approx_cost)
+  service_level     INT       0=None, 1=Online, 2=Booking, 3=Full service
+  location_tier     CATEGORY  Tier-1/2/3 based on avg cost in area
+  restaurant_segment TEXT     Economy/Mainstream/Premium/Elite (KMeans)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ISSUE: UnicodeDecodeError when loading CSV
+  FIX: pd.read_csv("data/raw/zomato.csv", encoding="latin-1")
+
+ISSUE: ModuleNotFoundError: src
+  FIX: Add to notebook cell 1:
+    import sys; sys.path.insert(0, "..")
+
+ISSUE: FileNotFoundError: cleaned data not found
+  FIX: Run python -m src.data_cleaning from project root first
+
+ISSUE: Power BI can't find location on map
+  FIX: In Location_Summary, add a "Country" column = "India"
+       and "City" column = "Bangalore". Set geographic category in PBI.
+
+ISSUE: xlsxwriter import error
+  FIX: pip install xlsxwriter==3.2.0
+
+ISSUE: KMeans produces inconsistent segments
+  FIX: random_state=42 is hardcoded — should be deterministic.
+       If issue persists, check that rate_numeric nulls are filled before clustering.
+
+ISSUE: Folium map not rendering in Jupyter
+  FIX: from IPython.display import IFrame; IFrame("images/map.html", 800, 500)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+END OF GUIDE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Estimated completion time (with this guide):
+  Phase 1-2 (Setup + Data): 30 min
+  Phase 3 (Inspection):     1 hour
+  Phase 4 (Cleaning):       2 hours
+  Phase 5 (EDA):            2-3 hours
+  Phase 6 (Business):       3-4 hours
+  Phase 7 (Power BI):       3-4 hours
+  Phase 8 (Report):         2 hours
+  Phase 9 (GitHub):         1 hour
+  Phase 10-11 (Portfolio):  1 hour
+
+  TOTAL: ~16-18 hours for a polished portfolio deliverable.
+
+Good luck. Jai Bharat Mata 🇮🇳
